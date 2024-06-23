@@ -1,7 +1,7 @@
 /*
 File    : main.c
 Software "Kurs STM32 PCBtech"
-Lesson 7: Timers 1 and 2.
+Lesson 7: Timer1 complementary output PE9/PE8.
 Student: antigo1989@gmail.com
 */
 
@@ -31,34 +31,39 @@ int main(void) {
 void EXTI15_10_IRQHandler(void){
   switch(EXTI->PR & (EXTI_PR_PR10|EXTI_PR_PR11|EXTI_PR_PR12)){
     case EXTI_PR_PR10:
-      __NOP();
+      TIM1->EGR |= TIM_EGR_BG; //disable output
       break;
     case EXTI_PR_PR11:
-      __NOP();
+      TIM1->BDTR |= TIM_BDTR_MOE;//enable output
       break;
     case EXTI_PR_PR12:
       __NOP();
       break;
   }
-  EXTI->PR |= EXTI_PR_PR10|EXTI_PR_PR12;
+  EXTI->PR |= EXTI_PR_PR10|EXTI_PR_PR11|EXTI_PR_PR12;
 }
 
 
 /****************************** function**********************************/
 void TIM1_Init(void){
+  //PE9 and PE8
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOEEN;
-  /*
-  GPIOE->MODER |= GPIO_MODER_MODE11_1;
-  GPIOE->AFR[1] |= (1<<GPIO_AFRH_AFSEL11_Pos);
-  */
+  GPIOE->MODER |= GPIO_MODER_MODE8_1|GPIO_MODER_MODE9_1;
+  GPIOE->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR8_1|GPIO_OSPEEDER_OSPEEDR9_1;
+  GPIOE->AFR[1] |= (1<<GPIO_AFRH_AFSEL8_Pos)|(1<<GPIO_AFRH_AFSEL9_Pos);
+
   RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
-  TIM1->PSC = 83; //1MHz
-  TIM1->CR1 &= ~(TIM_CR1_CMS|TIM_CR1_DIR);
-  
+  TIM1->PSC = 1; //42MHz
+  TIM1->CR1 |= TIM_CR1_CMS;
+  TIM1->ARR = 1023; // ~20kHz
+  TIM1->CCR1 = 511;
+  TIM1->CCMR1 |= TIM_CCMR1_OC1M; //mode 2
+  TIM1->CCMR1 &= ~(TIM_CCMR1_CC1S); //channel 1 - output
+  TIM1->CCER |= TIM_CCER_CC1NE|TIM_CCER_CC1E; //enable channel 1 and channel 1N
+  TIM1->BDTR |= (0b11100001<<TIM_BDTR_DTG_Pos)|TIM_BDTR_MOE; //enable output
   //Start Timer
   TIM1->CR1 |= TIM_CR1_CEN;
   TIM1->EGR |= TIM_EGR_UG;
-
 }
 
 
